@@ -46,7 +46,6 @@
             background-size: cover;
             z-index: -4;
             pointer-events: none;
-            image-rendering: pixelated;
         }
 
         /* Falling Particles Layer */
@@ -60,45 +59,25 @@
             pointer-events: none;
         }
 
-        /* 
-           GLOBAL DITHER SCREEN MATRIX 
-           This element catches both the background image and the moving snow particles 
-           underneath it, mapping an authentic ordered Bayer pattern across them.
-        */
-        .dither-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -2;
-            pointer-events: none;
-            /* Ultra-sharp scaling for the generated data URI pattern */
-            image-rendering: pixelated;
-            mix-blend-mode: overlay; 
-            opacity: 0.45; /* Control how harsh the dither structural lines cut through */
-        }
-
         /* Container wrapper housing programmatic beat translations */
         .gram-layer-container {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(1);
-    z-index: -1;
-    pointer-events: none;
-    will-change: transform;
-    /* FIX: Move the blend mode here so it cuts through the background layers */
-    mix-blend-mode: difference; 
-}
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            z-index: -1;
+            pointer-events: none;
+            will-change: transform;
+            /* FIX: Applied blend mode here so it blends correctly across transformed boundaries */
+            mix-blend-mode: difference;
+        }
 
-/* Centered Image Layer */
-.gram-layer {
-    max-width: 90vw;
-    max-height: 90vh;
-    display: block;
-    /* Remove mix-blend-mode from here */
-}
+        /* Centered Image Layer */
+        .gram-layer {
+            max-width: 90vw;
+            max-height: 90vh;
+            display: block;
+        }
 
         /* Entry overlay gate to enable audio autoplay */
         .entry-overlay {
@@ -148,7 +127,7 @@
             transform: scale(1);
         }
 
-        /* Main Bio Box Container - Clean Solid Background */
+        /* Main Bio Box Container */
         .bio-container {
             width: 100%;
             background: rgba(10, 10, 10, 0.95); 
@@ -277,15 +256,12 @@
     <div class="bg-layer" id="bgLayer"></div>
     <canvas id="snowCanvas"></canvas>
     
-    <!-- Dither processing screen over the top of backgrounds and particles -->
-    <div class="dither-screen" id="ditherScreen"></div>
-
     <!-- Animated container wrapper to preserve mix-blend-mode performance -->
     <div class="gram-layer-container" id="gramContainer">
         <img class="gram-layer" src="test/gram.png" alt="Gram Structure Layer">
     </div>
 
-    <!-- Hidden audio streaming handling engine (Crossorigin attribute restored for AudioContext) -->
+    <!-- Hidden audio streaming handling engine -->
     <audio id="audioStream" src="test/music.mp3" loop crossorigin="anonymous"></audio>
 
     <!-- 3D Transform Framework Container -->
@@ -344,6 +320,7 @@
 
         // Static Assets Mounting 
         document.getElementById('avatarImg').src = CONFIG.avatarUrl;
+        document.getElementById('bgLayer').style.backgroundImage = `url(${CONFIG.bgUrl})`;
 
         // Visual Layout Element Targets
         const audio = document.getElementById('audioStream');
@@ -386,94 +363,6 @@
             audio.volume = 0.45;
             audio.play().catch(err => console.log("Audio playback failed: ", err));
         });
-
-        /* ---- Full-Resolution Grayscale Ordered Dither Engine ---- */
-        function applyColorBayerDither(imgElement) {
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            // Run at full native resolution to keep the dither mesh completely sharp
-            const w = imgElement.naturalWidth || window.innerWidth;
-            const h = imgElement.naturalHeight || window.innerHeight;
-            
-            tempCanvas.width = w;
-            tempCanvas.height = h;
-            
-            tempCtx.drawImage(imgElement, 0, 0, w, h);
-            const imgData = tempCtx.getImageData(0, 0, w, h);
-            const data = imgData.data;
-
-            // 8x8 Bayer Matrix for maximum structural definition and no blotchy clustering
-            const bayer8x8 = [
-                [ 0,  48, 12,  60,  3,  51, 15,  63],
-                [32,  16, 44,  28, 35,  19, 47,  31],
-                [ 8,  56,  4,  52, 11,  59,  7,  55],
-                [40,  24, 36,  20, 43,  27, 39,  23],
-                [ 2,  50, 14,  62,  1,  49, 13,  61],
-                [34,  18, 46,  30, 33,  17, 45,  29],
-                [10,  58,  6,  54,  9,  57,  5,  53],
-                [42,  26, 38,  22, 41,  25, 37,  21]
-            ];
-
-            for (let y = 0; y < h; y++) {
-                for (let x = 0; x < w; x++) {
-                    const idx = (y * w + x) * 4;
-                    
-                    // Convert to clean grayscale using precise luminance factors
-                    const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                    
-                    // Normalize the matrix threshold to a 0-255 scale
-                    const threshold = (bayer8x8[y % 8][x % 8] / 64) * 255;
-                    
-                    // Perfect sharp 1-bit snap
-                    const finalColor = gray < threshold ? 0 : 255;
-                    
-                    data[idx]     = finalColor; // R
-                    data[idx + 1] = finalColor; // G
-                    data[idx + 2] = finalColor; // B
-                }
-            }
-
-            tempCtx.putImageData(imgData, 0, 0);
-            document.getElementById('bgLayer').style.backgroundImage = `url(${tempCanvas.toDataURL()})`;
-        }
-
-        // Initialize background image processing stream
-        const bgImg = new Image();
-        bgImg.crossOrigin = "anonymous"; 
-        bgImg.src = CONFIG.bgUrl;
-        bgImg.onload = () => applyColorBayerDither(bgImg);
-        bgImg.onerror = () => {
-            document.getElementById('bgLayer').style.backgroundImage = `url(${CONFIG.bgUrl})`;
-        };
-
-        /* ---- Render Hardware-Accelerated Viewport Dither Layer ---- */
-        function generateDitherScreenPattern() {
-            const patCanvas = document.createElement('canvas');
-            patCanvas.width = 4;
-            patCanvas.height = 4;
-            const patCtx = patCanvas.getContext('2d');
-            const patData = patCtx.createImageData(4, 4);
-            const buf = new Uint32Array(patData.data.buffer);
-
-            const matrix = [
-                [  15, 135,  45, 165 ],
-                [ 210,  75, 240, 105 ],
-                [  60, 180,  30, 150 ],
-                [ 255, 120, 225,  90 ]
-            ];
-
-            for (let y = 0; y < 4; y++) {
-                for (let x = 0; x < 4; x++) {
-                    const v = matrix[y][x];
-                    buf[y * 4 + x] = (255 << 24) | (v << 16) | (v << 8) | v;
-                }
-            }
-            patCtx.putImageData(patData, 0, 0);
-            document.getElementById('ditherScreen').style.backgroundImage = `url(${patCanvas.toDataURL()})`;
-            document.getElementById('ditherScreen').style.backgroundSize = '4px 4px';
-        }
-        generateDitherScreenPattern();
 
         /* ---- HTML5 Snow Canvas Particle Engine ---- */
         const canvas = document.getElementById('snowCanvas');
@@ -538,7 +427,7 @@
         let currentScale = 1;
 
         function renderLoop() {
-            // 1. Draw Snow Particles
+            // Draw Snow Particles
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < particles.length; i++) {
                 particles[i].update();
@@ -547,21 +436,19 @@
 
             let targetScale = 1.0;
 
-            // 2. Real-Time Audio Frequency Amplitude Detection
+            // Real-Time Audio Frequency Amplitude Detection
             if (isAudioInitialized && !audio.paused) {
                 analyser.getByteFrequencyData(dataArray);
                 let bassTotal = 0;
-                // Target low-frequency index registers for punchy kick detection
                 for (let i = 0; i < 4; i++) {
                     bassTotal += dataArray[i];
                 }
                 let rawBassVal = bassTotal / 4;
                 
-                // Maps bass values into scale modifiers (Max scale reach: ~1.15x larger)
                 targetScale = 1.0 + (rawBassVal / 255) * 0.15;
             }
 
-            // Linear interpolation easing equations for ultra smooth fluid springback
+            // Linear interpolation easing equations for dynamic scale updates
             currentScale += (targetScale - currentScale) * 0.25;
             gramContainer.style.transform = `translate(-50%, -50%) scale(${currentScale})`;
 

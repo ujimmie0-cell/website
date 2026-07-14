@@ -33,50 +33,15 @@
             perspective: 1000px; 
         }
 
-        /* Background Layer Container */
-        .bg-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #000000;
-            background-repeat: no-repeat;
-            background-position: center center;
-            background-size: cover;
-            z-index: -4;
-            pointer-events: none;
-        }
-
-        /* Falling Particles Layer */
+        /* Particle Canvas Background */
         #snowCanvas {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            z-index: -3;
-            pointer-events: none;
-        }
-
-        /* Container wrapper housing programmatic beat translations */
-        .gram-layer-container {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(1);
             z-index: -1;
             pointer-events: none;
-            will-change: transform;
-            /* FIX: Applied blend mode here so it blends correctly across transformed boundaries */
-            mix-blend-mode: difference;
-        }
-
-        /* Centered Image Layer */
-        .gram-layer {
-            max-width: 90vw;
-            max-height: 90vh;
-            display: block;
         }
 
         /* Entry overlay gate to enable audio autoplay */
@@ -127,14 +92,16 @@
             transform: scale(1);
         }
 
-        /* Main Bio Box Container */
+        /* Main Glassmorphism Bio Box Container */
         .bio-container {
             width: 100%;
-            background: rgba(10, 10, 10, 0.95); 
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 24px;
             padding: 40px;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             transition: transform 0.1s ease-out;
             transform-style: preserve-3d;
         }
@@ -252,17 +219,11 @@
         <span>click to view</span>
     </div>
 
-    <!-- Visual Layer Environments -->
-    <div class="bg-layer" id="bgLayer"></div>
+    <!-- Snow Particle Canvas Background Structure -->
     <canvas id="snowCanvas"></canvas>
-    
-    <!-- Animated container wrapper to preserve mix-blend-mode performance -->
-    <div class="gram-layer-container" id="gramContainer">
-        <img class="gram-layer" src="test/gram.png" alt="Gram Structure Layer">
-    </div>
 
     <!-- Hidden audio streaming handling engine -->
-    <audio id="audioStream" src="test/music.mp3" loop crossorigin="anonymous"></audio>
+    <audio id="audioStream" src="test/music.mp3" loop></audio>
 
     <!-- 3D Transform Framework Container -->
     <div class="wrapper-3d" id="tiltWrapper">
@@ -270,7 +231,7 @@
         <!-- Center Profile Frame Layer -->
         <div class="bio-container" id="bioContainer">
             <div class="profile-header">
-                <img class="avatar" id="avatarImg" src="" alt="Avatar">
+                <img class="avatar" id="avatarImg" src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150" alt="Avatar">
                 <div class="profile-info">
                     <h1 id="usernameHeading">vanitas</h1>
                     <div class="sub-tag" id="subTag">@vanitas87</div>
@@ -314,62 +275,34 @@
     <!-- RUNTIME LOGIC SCRIPT ENGINE -->
     <script>
         const CONFIG = {
-            avatarUrl: "test/pfp.png",
-            bgUrl: "test/bg.png"
+            avatarUrl: "test/pfp.png"
         };
 
         // Static Assets Mounting 
         document.getElementById('avatarImg').src = CONFIG.avatarUrl;
-        document.getElementById('bgLayer').style.backgroundImage = `url(${CONFIG.bgUrl})`;
 
-        // Visual Layout Element Targets
+        // Audio Activation System Pipeline
         const audio = document.getElementById('audioStream');
         const entryOverlay = document.getElementById('entryOverlay');
         const wrapper = document.getElementById('tiltWrapper');
-        const gramContainer = document.getElementById('gramContainer');
-
-        /* ---- Real-Time AudioContext Analyzer Node Setup ---- */
-        let audioCtx, analyser, dataArray;
-        let isAudioInitialized = false;
-
-        function initAudioTracker() {
-            if (isAudioInitialized) return;
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                
-                const source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                
-                analyser.fftSize = 64;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-                isAudioInitialized = true;
-            } catch (e) {
-                console.error("Audio initialization blocked:", e);
-            }
-        }
 
         entryOverlay.addEventListener('click', () => {
             entryOverlay.style.opacity = '0';
             entryOverlay.style.visibility = 'hidden';
             wrapper.classList.add('loaded');
 			
-            initAudioTracker();
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            audio.volume = 0.45;
+			audio.volume = 0.45;
+            
+            // Execute non-visual audio stream contextual capture
             audio.play().catch(err => console.log("Audio playback failed: ", err));
         });
 
-        /* ---- HTML5 Snow Canvas Particle Engine ---- */
+        /* ---- HTML5 Snow Canvas Particle Engine (Varied Sizes + Terminal Drag) ---- */
         const canvas = document.getElementById('snowCanvas');
         const ctx = canvas.getContext('2d');
 
         let particles = [];
-        const maxParticles = 240; 
+        const maxParticles = 120;
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -381,31 +314,38 @@
         class Particle {
             constructor() {
                 this.reset();
+                // Randomize initial grid placement uniformly
                 this.y = Math.random() * canvas.height;
             }
 
             reset() {
                 this.x = Math.random() * canvas.width;
                 this.y = -10;
+                // Varying sizes (from tiny flakes to soft distinct particles)
                 this.size = Math.random() * 3.5 + 0.5;
+                // Speed scales logically with mass/size 
                 this.baseSpeedY = Math.random() * 1.2 + 0.4;
                 this.speedY = this.baseSpeedY;
                 this.speedX = Math.random() * 0.4 - 0.2;
+                // Physics-like fluid drag simulation parameters
                 this.drag = 0.98; 
                 this.swingAngle = Math.random() * Math.PI * 2;
                 this.swingSpeed = Math.random() * 0.02 + 0.005;
             }
 
             update() {
+                // Apply subtle lateral sway adjustments via sine calculation
                 this.swingAngle += this.swingSpeed;
                 let horizontalSway = Math.sin(this.swingAngle) * 0.2;
 
+                // Move with calculated terminal velocity dampening
                 this.speedY *= this.drag;
                 if (this.speedY < this.baseSpeedY) this.speedY = this.baseSpeedY;
 
                 this.y += this.speedY;
                 this.x += this.speedX + horizontalSway;
 
+                // Recycle particle system once bounds are broken
                 if (this.y > canvas.height + 10 || this.x < -10 || this.x > canvas.width + 10) {
                     this.reset();
                 }
@@ -414,49 +354,28 @@
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.size > 2 ? 0.85 : 0.55})`;
+                // Tiny flakes are given softer opacity for deeper layer depth perception
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.size > 2 ? 0.75 : 0.45})`;
                 ctx.fill();
             }
         }
 
+        // Initialize particle array
         for (let i = 0; i < maxParticles; i++) {
             particles.push(new Particle());
         }
 
-        /* ---- Unified Animation Frame Rendering Loop ---- */
-        let currentScale = 1;
-
-        function renderLoop() {
-            // Draw Snow Particles
+        function animateParticles() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < particles.length; i++) {
                 particles[i].update();
                 particles[i].draw();
             }
-
-            let targetScale = 1.0;
-
-            // Real-Time Audio Frequency Amplitude Detection
-            if (isAudioInitialized && !audio.paused) {
-                analyser.getByteFrequencyData(dataArray);
-                let bassTotal = 0;
-                for (let i = 0; i < 4; i++) {
-                    bassTotal += dataArray[i];
-                }
-                let rawBassVal = bassTotal / 4;
-                
-                targetScale = 1.0 + (rawBassVal / 255) * 0.15;
-            }
-
-            // Linear interpolation easing equations for dynamic scale updates
-            currentScale += (targetScale - currentScale) * 0.25;
-            gramContainer.style.transform = `translate(-50%, -50%) scale(${currentScale})`;
-
-            requestAnimationFrame(renderLoop);
+            requestAnimationFrame(animateParticles);
         }
-        renderLoop();
+        animateParticles();
 
-        /* ---- Dynamic Mouse Parallax Module ---- */
+        /* ---- Dynamic Mouse Parallax Matrix tracking Script ---- */
         const intensity = 12; 
 
         document.addEventListener('mousemove', (e) => {
